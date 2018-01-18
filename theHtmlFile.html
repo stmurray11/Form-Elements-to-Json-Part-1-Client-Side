@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Form Elements to Json Part 1: Client Side</title>
+</head>
+<body>
+       
+<p>Form Elements to Json Part 1: Client Side</p>
+<p>
+The javascript function dynamically builds a JSON string from the form elements, whether there's one element or a hundred.
+<br><br>
+Show the Json, then add a new field and show the Json again, and you'll see the power of it.
+<br><br>
+If you like this, check out Form Elements to Json Part 2: Server Side.
+</p>
+With both parts, you can add a form field and a corresponding database field, with no coding changes in between.
+</p>
+<hr>
+<form id="theForm">
+
+  <input type="hidden" id="theHiddenIdField" value="anEncryptedTokenCotainingTheTableNameAndTheIdValue">
+
+  First name: <input type="text" id="firstname" value="Mickey"><br>
+
+  Last name: <input type="text" id="lastname" value="Mouse"><br>
+
+  Street: <input type="text" id="street" value="1 Cheese Lane"><br>
+
+  City: <input type="text" id="city" value="Toontown"><br>
+
+  State: <input type="text" id="state" value="FL"><br>
+
+  Zip: <input type="text" id="zip" value="12345"><br>
+
+
+
+
+</form>
+<br>
+ <button type='button' onclick="addField();">Add New Field</button> 
+
+<hr>
+ <button type='button' onclick="showJson();">Show Json for Current Fields</button> <br><br>
+    <div id="divJsonOutput"/>
+</body>
+</html>
+
+
+<script>
+
+var iNewFields = 0;
+function addField(){
+         iNewFields += 1;
+         var r = document.createElement('span');
+         r.innerHTML = "newField" + iNewFields + ": ";
+         var y = document.createElement("INPUT");
+         y.setAttribute("type", "text");
+         y.setAttribute("value", "New Info" + iNewFields);
+         y.setAttribute("id", "newField" + iNewFields);
+         r.appendChild(y);
+         r.innerHTML = r.innerHTML + "<br>";
+         document.getElementById("theForm").appendChild(r);
+}
+
+
+function showJson() {
+      var sJson = glb_formConvertToJson(    document.getElementById("theForm")   );
+      sJson = sJson.replace(/,/g , ',<br>');
+      document.getElementById("divJsonOutput").innerHTML = sJson
+                + '<br><br>This can be AJAX\'d to the server to update the record.'
+                + '<br><br>The `update` tag can be set to update/delete/insert depending on the situation.'
+                + '<br><br>Look for Form Elements to Json Part 2: Server Side.'
+                ;
+     window.scroll(0,020);
+}
+
+function glb_formConvertToJson(theForm, sjsonGroupField, sInsertorUpdate, bOneLevel, sElementsToSkip) {
+
+    if (sjsonGroupField == undefined) { sjsonGroupField = ''; }
+
+    if (sInsertorUpdate == undefined) { sInsertorUpdate = 'update'; }
+
+    if (bOneLevel == undefined) { bOneLevel = false; }
+
+    if (sElementsToSkip == undefined) { sElementsToSkip = ''; }
+
+    var sSeparator = '';
+    var elLength = theForm.elements.length;
+    //open the json outmost element
+    var sJson = '{  ';
+
+    //if just one element, open it here
+    if (sjsonGroupField.length == 0 && bOneLevel == false ) { sJson += ' "' + sInsertorUpdate + '": { '; }
+
+    var iInnerCount = 0;
+    var iOuterCount = 0;
+
+    for (i = 0; i < elLength; i++) {
+
+        // if sElementsToSkip contains the id of this element, skip it
+        if (sElementsToSkip.length > 0 && sElementsToSkip.indexOf(theForm.elements[i].id.toString()) > -1) { continue; }
+
+        //if multi elements, create it here
+        if (theForm.elements[i].id.toString().indexOf('jsonStart') == 0) {
+            sSeparator = theForm.elements[i].value;
+            if (iOuterCount > 0) { sJson += ","; }
+            iOuterCount += 1;
+            iInnerCount += 1;
+            sJson += ' "' + sInsertorUpdate + i.toString() + '": {"' + sjsonGroupField + '":"' + sSeparator + '"';
+            continue;
+        }
+
+        if (theForm.elements[i].id.toString().indexOf('jsonEnd') == 0) {
+            sSeparator = "";
+            sJson += '}';
+            continue;
+        }
+        var type = theForm.elements[i].type;
+
+        //get element id into sElementId
+        sElementId = theForm.elements[i].id;
+        //string sElementId from sElementId if needed
+        if (sSeparator.length > 0) { sElementId = theForm.elements[i].id.toString().replace(sSeparator, ''); }
+
+        //process element
+        if ((type == "radio" || type == "checkbox") && theForm.elements[i].checked) {
+            if (iInnerCount > 0) { sJson += ","; }
+            iInnerCount += 1;
+            sJson += '"' + sElementId + '":"'
+                         + theForm.elements[i].value + '"';
+        }
+        else if (type == "select-one" || type == "select") {
+            if (iInnerCount > 0) { sJson += ","; }
+            iInnerCount += 1;
+            sJson += '"' + sElementId + '":"'
+                         + theForm.elements[i].value + '"';
+        }
+        else if (type == "textarea" || type == "text") {
+            if (iInnerCount > 0) { sJson += ","; }
+            iInnerCount += 1;
+            var sLocal = theForm.elements[i].value.toString().split('"').join('`'); //replace double quotes
+            sLocal = sLocal.replace(/\\/g, "\\\\");
+            sLocal = sLocal.replace(/'/g, "`");
+            sJson += '"' + sElementId + '":"' + sLocal + '"';
+        }
+        else if (type == "hidden") {
+            if (iInnerCount > 0) { sJson += ","; }
+            iInnerCount += 1;
+            sJson += '"' + sElementId + '":"'
+                         + theForm.elements[i].value + '"';
+        }
+    }//for
+
+    //if just one element, close it here
+    if (sjsonGroupField.length == 0 && bOneLevel == false) { sJson += ' } '; }
+
+    //close outmost elements
+    sJson += "  }";
+    sJson = sJson.split('\'').join('`');   //replace single quotes
+
+    return sJson;
+}
+</script>
